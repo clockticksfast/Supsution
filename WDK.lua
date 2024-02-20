@@ -12,6 +12,7 @@ local Window = Library:CreateWindow({
 })
 local Tabs = {
     Main = Window:AddTab('Main'),
+    Automatic = Window:AddTab('Automatic'),
     ['UI Settings'] = Window:AddTab('UI Settings'),
 }
 
@@ -20,8 +21,9 @@ local Tabs = {
 -- // Main Tabs
 
 local AimbotLeftTab = Tabs.Main:AddLeftGroupbox('Aimbot configuration')
-local AimbotLeftVisualsBox = Tabs.Main:AddRightTabbox()
-local AimbotVisualsBox = AimbotLeftVisualsBox:AddTab('Fov')
+local AutomaticLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm configuration')
+local AimbotRightVisualsBox = Tabs.Main:AddRightTabbox()
+local AimbotVisualsBox = AimbotRightVisualsBox:AddTab('Fov')
 
 -- // Variables
 local Workspace, Players, RunService, Camera, UserInputService = game:GetService("Workspace"), game:GetService("Players"), game:GetService("RunService"), Game:GetService("Workspace").CurrentCamera, game:GetService("UserInputService")
@@ -220,6 +222,17 @@ AimbotLeftTab:AddDivider()
 AimbotLeftTab:AddDropdown('AimbotTargetPartDropdown', {Values = { 'Head', 'HumanoidRootPart'},Default = 1,Multi = false,Text = 'Hitpart',Tooltip = 'Wich part to target', Callback = function(Value)
     TargetPart = Value
 end})
+AimbotLeftTab:AddDropdown('AimbotHitScanDropdown', {Values = { 'Head', 'HumanoidRootPart'},Default = 2,Multi = true,Text = 'Hitscan',Tooltip = 'If the part(s) is detected inside the circle, choose that character', Callback = function(Value)
+
+end})
+
+
+Options.AimbotHitScanDropdown:OnChanged(function()
+    HitScanParts = {}
+    for key, value in next, Options.AimbotHitScanDropdown.Value do
+        table.insert(HitScanParts, key)
+    end
+end)
 AimbotLeftTab:AddToggle('AimbotClosestPartToggle', {Text = 'Closest Part', Default = false, Tooltip = 'Will aim at the nearest part to the mouse instead of 1 part', Callback = function(Value)
     ClosestPart = Value
 end})
@@ -228,7 +241,7 @@ AimbotLeftTab:AddToggle('AimbotClosestPointToggle', {Text = 'Closest Point', Def
 end})
 
 
-AimbotVisualsBox:AddToggle('FovVisibleToggle', {Text = 'Visible', Default = false, Tooltip = 'Aimbot toggle', Callback = function(Value)
+AimbotVisualsBox:AddToggle('FovVisibleToggle', {Text = 'Visible', Default = false, Tooltip = 'Aimbot fov toggle', Callback = function(Value)
     GlobalFovCircle.Visible = Value
 end})
 
@@ -243,7 +256,9 @@ end})
 AimbotVisualsBox:AddSlider('FovThicknessSlider', { Text = 'Thickness', Default = 1, Min = 1, Max = 25, Rounding = 0, Compact = false, Callback = function(Value)
     GlobalFovCircle.Thickness = Value
 end})
-
+AimbotVisualsBox:AddLabel('Color'):AddColorPicker('FovCircleColor', { Default = Color3.fromRGB(0, 85, 255), Title = 'Fov circle color', Transparency = nil, Callback = function(Value)
+    GlobalFovCircle.Color = Value
+end})
 
 task.spawn(function()
     while true do
@@ -282,7 +297,7 @@ RunService.RenderStepped:Connect(function()
         NearestCharacter, NearestCharacterPosition2D, NearestCharacterPosition3D = nil, nil, nil
     end
 
-    if NearestCharacterPosition2D and not MouseHook then
+    if NearestCharacter and NearestCharacterPosition2D and not MouseHook then
         mousemoverel(NearestCharacterPosition2D.X - Mouse.X,NearestCharacterPosition2D.Y - Mouse.Y)
     end
 
@@ -305,8 +320,8 @@ ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
-ThemeManager:SetFolder('Kennedy')
-SaveManager:SetFolder('Kennedy/Universal')
+ThemeManager:SetFolder('WDK')
+SaveManager:SetFolder('WDK/TFS2')
 SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
 SaveManager:LoadAutoloadConfig()
