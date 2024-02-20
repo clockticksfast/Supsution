@@ -13,20 +13,26 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Main = Window:AddTab('Main'),
     Automatic = Window:AddTab('Automatic'),
+    Misc = Window:AddTab('Misc'),
     ['UI Settings'] = Window:AddTab('UI Settings'),
 }
 
 
 
+
+
 -- // Main Tabs
 
+-- // Left Tabs
 local AimbotLeftTab = Tabs.Main:AddLeftGroupbox('Aimbot configuration')
 local AutomaticLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm configuration')
+local MiscLeftTab = Tabs.Misc:AddLeftGroupbox('Misc')
+
 local AimbotRightVisualsBox = Tabs.Main:AddRightTabbox()
 local AimbotVisualsBox = AimbotRightVisualsBox:AddTab('Fov')
 
 -- // Variables
-local Workspace, Players, RunService, Camera, UserInputService = game:GetService("Workspace"), game:GetService("Players"), game:GetService("RunService"), Game:GetService("Workspace").CurrentCamera, game:GetService("UserInputService")
+local Workspace, Players, RunService, Camera, UserInputService, ReplicatedStorage = game:GetService("Workspace"), game:GetService("Players"), game:GetService("RunService"), Game:GetService("Workspace").CurrentCamera, game:GetService("UserInputService"), game:GetService("ReplicatedStorage")
 local Zombies = Workspace.Zombies
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
@@ -42,11 +48,20 @@ local ClosestPart = false
 local ClosestPoint = false
 local NearestCharacter = nil
 
+local AutofarmStatus = false
+local AnticheatBypassStatus = false
+local AutofarmStartPlace = nil -- position where the autofarm is toggled
+local AutofarmPlacement = "Above"
 local Checks = {
     Visible = false,
     Wall = false,
 
 }
+local floatpad = Instance.new("Part", LocalPlayer.Character)
+floatpad.Anchored = true
+floatpad.Transparency = 1
+floatpad.Size = Vector3.new(2, 0.2, 1.5)
+
 
 local GlobalFovCircle = Drawing.new("Circle")
 GlobalFovCircle.Radius = 100
@@ -56,6 +71,9 @@ GlobalFovCircle.Transparency = 1
 GlobalFovCircle.Color = Color3.fromRGB(0, 0, 255)
 
 -- // fucntions
+function CalcDistance(position1, position2)
+    return (position1 - position2).magnitude
+ end
 function WorldToViewport(position)
     local Position = Camera:WorldToViewportPoint(position)
     return Vector2.new(Position.X, Position.Y)
@@ -95,6 +113,21 @@ function GetEnemies()
 
 end
 
+function GetClosestCharacterToPosition(CharacterTable, Position)
+    local ClosestPlayer
+    local ClosestDistance = math.huge
+
+    for i, Character in pairs(CharacterTable) do
+        local CharacterPosition = Character:FindFirstChildWhichIsA("BasePart").Position
+        local Distance = CalcDistance(CharacterPosition, Position)
+
+        if Distance < ClosestDistance then
+            ClosestPlayer = Character
+            ClosestDistance = Distance
+        end
+    end
+    return ClosestPlayer
+end
 
 function GetClosestCharacterToCursor(CharacterTable)
 
@@ -120,7 +153,7 @@ function GetClosestCharacterToCursor(CharacterTable)
 
 
         for i, HitScanPart in pairs(HitScanParts) do
-            if Character ~= LocalPlayer.Character and Character:FindFirstChild(HitScanPart) then
+            if Character:FindFirstChild(HitScanPart) then
                 local Hitpart = Character:FindFirstChild(HitScanPart)
                 local Hitpart2D = WorldToViewport(Hitpart.Position)
                 local Distance = (Vector3.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y, 0) - Vector3.new(Hitpart2D.X, Hitpart2D.Y, 0)).Magnitude
@@ -206,6 +239,20 @@ function CalculatePosition(Part, Point)
 
 end
 
+function FreezeCharacter()
+    if LocalPlayer.Character then
+        local head = LocalPlayer.Character:FindFirstChild("Head")
+        if head then
+            local oldSize = head.Size
+            head.Size = Vector3.new(0, 0, 0)
+            RunService.RenderStepped:Wait()
+            head.Size = oldSize
+        end
+    end
+end
+
+
+
 -- // Main script below
 
 
@@ -241,6 +288,24 @@ AimbotLeftTab:AddToggle('AimbotClosestPointToggle', {Text = 'Closest Point', Def
 end})
 
 
+AutomaticLeftTab:AddToggle('AutofarmToggle', {Text = 'Autofarm', Default = false, Tooltip = 'Toggle autofarm', Callback = function(Value)
+    if Value then
+        AnticheatBypassStatus = true
+        AutofarmStartPlace = LocalPlayer.Character.HumanoidRootPart.CFrame
+    else
+        if AutofarmStartPlace then
+            AnticheatBypassStatus = false
+            LocalPlayer.Character.HumanoidRootPart.CFrame = AutofarmStartPlace
+        end
+    end
+    AutofarmStatus = Value
+end})
+AutomaticLeftTab:AddDropdown('AutofarmPlacementDropdown', {Values = { 'Above', 'Behind', "Infront"},Default = 1,Multi = false,Text = 'Teleport placement',Tooltip = 'Where will it teleport', Callback = function(Value)
+    AutofarmPlacement = Value
+end})
+
+
+
 AimbotVisualsBox:AddToggle('FovVisibleToggle', {Text = 'Visible', Default = false, Tooltip = 'Aimbot fov toggle', Callback = function(Value)
     GlobalFovCircle.Visible = Value
 end})
@@ -260,6 +325,18 @@ AimbotVisualsBox:AddLabel('Color'):AddColorPicker('FovCircleColor', { Default = 
     GlobalFovCircle.Color = Value
 end})
 
+
+MiscLeftTab:AddButton({Text = 'Copy servercode',
+    Func = function()
+        if ReplicatedStorage.Values:FindFirstChild("ServerCode") then
+            setclipboard(ReplicatedStorage.Values.ServerCode.Value)
+        end
+    end,
+    DoubleClick = false,
+    Tooltip = 'Copy the servercode'
+})
+
+
 task.spawn(function()
     while true do
         task.wait()
@@ -274,17 +351,41 @@ task.spawn(function()
     end
 end)
 
+RunService.Heartbeat:Connect(function()
+    if AnticheatBypassStatus then
+        FreezeCharacter()
+    end
+end)
 
 RunService.RenderStepped:Connect(function()
+
 
 
     -- // Fov circle
     if GlobalFovCircle.Visible then
         GlobalFovCircle.Position = UserInputService:GetMouseLocation() -- WorldToViewport(Mouse.Hit.Position) (both the same)
     end
+    if AutofarmStatus then
+        NearestCharacter = GetClosestCharacterToPosition(GetEnemies(), Workspace.Map.Scripted.Doors.FakeLight.Position)
+        if NearestCharacter and LocalPlayer.Character and AnticheatBypassStatus then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(NearestCharacter.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+            if AutofarmPlacement == "Above" then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(NearestCharacter.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+            elseif AutofarmPlacement == "Infront" then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame + NearestCharacter.HumanoidRootPart.CFrame.LookVector * 5
+            elseif AutofarmPlacement == "Behind" then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame - NearestCharacter.HumanoidRootPart.CFrame.LookVector * 5
+            end
+            floatpad.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,-3.1,0)
+        else
+            floatpad.CFrame = CFrame.new(Vector3.new(0, 50000, 0))
+        end
+    end
 
     if AimbotToggleStatus and AimbotKeyToggleStatus then
-        NearestCharacter = GetClosestCharacterToCursor(GetEnemies())
+        if not AutofarmStatus then
+            NearestCharacter = GetClosestCharacterToCursor(GetEnemies())
+        end
         if NearestCharacter then
             if NearestCharacter then
                 NearestCharacterPosition3D = CalculatePosition(GetPart(NearestCharacter))
