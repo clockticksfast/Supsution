@@ -1,7 +1,7 @@
 local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua'))()
 local ThemeManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua'))()
 local SaveManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua'))()
---test
+
 
 local Window = Library:CreateWindow({
     Title = 'Windows Driver Kit Beta',
@@ -151,7 +151,7 @@ function GetClosestPart(Model)
     for _, Part in pairs(Model:GetChildren()) do
         if Part:IsA("BasePart") then
             local p = Camera:WorldToViewportPoint(Part.Position)
-            local Distance = (Vector3.new(Mouse.X, Mouse.Y + 36, 0) - Vector3.new(p.X, p.Y, 0)).Magnitude
+            local Distance = (Vector3.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y, 0) - Vector3.new(p.X, p.Y, 0)).Magnitude
             if Distance < ClosestDistance then
                 ClosestPart = Part
                 ClosestDistance = Distance
@@ -216,6 +216,17 @@ end})
 AimbotLeftTab:AddToggle('AimbotStickyToggle', {Text = 'Sticky', Default = false, Tooltip = 'Stays on the target until unlocked', Callback = function(Value)
     AimbotStickyAim = Value
 end})
+AimbotLeftTab:AddDivider()
+AimbotLeftTab:AddDropdown('AimbotTargetPartDropdown', {Values = { 'Head', 'HumanoidRootPart'},Default = 1,Multi = false,Text = 'Hitpart',Tooltip = 'Wich part to target', Callback = function(Value)
+    TargetPart = Value
+end})
+AimbotLeftTab:AddToggle('AimbotClosestPartToggle', {Text = 'Closest Part', Default = false, Tooltip = 'Will aim at the nearest part to the mouse instead of 1 part', Callback = function(Value)
+    ClosestPart = Value
+end})
+AimbotLeftTab:AddToggle('AimbotClosestPointToggle', {Text = 'Closest Point', Default = false, Tooltip = 'Will aim at the nearest point on the part to the cursor', Callback = function(Value)
+    ClosestPoint = Value
+end})
+
 
 AimbotVisualsBox:AddToggle('FovVisibleToggle', {Text = 'Visible', Default = false, Tooltip = 'Aimbot toggle', Callback = function(Value)
     GlobalFovCircle.Visible = Value
