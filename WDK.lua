@@ -26,6 +26,7 @@ local Tabs = {
 -- // Left Tabs
 local AimbotLeftTab = Tabs.Main:AddLeftGroupbox('Aimbot configuration')
 local AutomaticLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm configuration')
+local AutomaticChecksLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm checks')
 local MiscLeftTab = Tabs.Misc:AddLeftGroupbox('Misc')
 
 local AimbotRightVisualsBox = Tabs.Main:AddRightTabbox()
@@ -56,7 +57,9 @@ local AutofarmLookat = false
 local Checks = {
     Visible = false,
     Wall = false,
-
+}
+local AutofarmChecks = {
+    Forcefield = false,
 }
 local floatpad = Instance.new("Part", LocalPlayer.Character)
 floatpad.Anchored = true
@@ -123,8 +126,13 @@ function GetClosestCharacterToPosition(CharacterTable, Position)
         local Distance = CalcDistance(CharacterPosition, Position)
 
         if Distance < ClosestDistance then
-            ClosestPlayer = Character
-            ClosestDistance = Distance
+            if AutofarmChecks.Forcefield and Character:FindFirstChildOfClass("ForceField") then
+                -- //
+            else
+
+                ClosestPlayer = Character
+                ClosestDistance = Distance
+            end
         end
     end
     return ClosestPlayer
@@ -307,6 +315,10 @@ end})
 AutomaticLeftTab:AddDivider()
 AutomaticLeftTab:AddToggle('AutofarmLookatToggle', {Text = 'Lookat target', Default = false, Tooltip = 'Will orient the camera so it faces the zombie', Callback = function(Value)
     AutofarmLookat = Value
+end})
+
+AutomaticChecksLeftTab:AddToggle('AutofarmForcefieldtoggle', {Text = 'Forcefield', Default = false, Tooltip = 'If forcefield then ignore', Callback = function(Value)
+    AutofarmChecks.Forcefield = Value
 end})
 
 
