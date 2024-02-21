@@ -54,6 +54,7 @@ local AnticheatBypassStatus = false
 local AutofarmStartPlace = nil -- position where the autofarm is toggled
 local AutofarmPlacement = "Above"
 local AutofarmLookat = false
+local Autofarmautoexitspawn = false
 local Checks = {
     Visible = false,
     Wall = false,
@@ -61,10 +62,10 @@ local Checks = {
 local AutofarmChecks = {
     Forcefield = false,
 }
-local floatpad = Instance.new("Part", LocalPlayer.Character)
+local floatpad = Instance.new("Part", Workspace)
 floatpad.Anchored = true
 floatpad.Transparency = 1
-floatpad.Size = Vector3.new(2, 0.2, 1.5)
+floatpad.Size = Vector3.new(4, 0.2, 4)
 
 
 local GlobalFovCircle = Drawing.new("Circle")
@@ -312,6 +313,9 @@ end})
 AutomaticLeftTab:AddDropdown('AutofarmPlacementDropdown', {Values = { 'Above', 'Behind', "Infront"},Default = 1,Multi = false,Text = 'Teleport placement',Tooltip = 'Where will it teleport', Callback = function(Value)
     AutofarmPlacement = Value
 end})
+AutomaticLeftTab:AddToggle('autofarmautoexitspawn', {Text = 'Auto exit spawn', Default = false, Tooltip = 'Automatically exit spawn', Callback = function(Value)
+    Autofarmautoexitspawn = Value
+end})
 AutomaticLeftTab:AddDivider()
 AutomaticLeftTab:AddToggle('AutofarmLookatToggle', {Text = 'Lookat target', Default = false, Tooltip = 'Will orient the camera so it faces the zombie', Callback = function(Value)
     AutofarmLookat = Value
@@ -367,6 +371,17 @@ task.spawn(function()
     end
 end)
 
+
+LocalPlayer.CharacterAdded:Connect(function(Character)
+    if Autofarmautoexitspawn then
+        local oldvalue = AnticheatBypassStatus -- // store the old ac bypass value
+        AnticheatBypassStatus = false
+        Character:WaitForChild("HumanoidRootPart")
+        LocalPlayer.Character.HumanoidRootPart.CFrame = Workspace.Map.Shop.InvisibleWalls:GetChildren()[23].CFrame
+        task.wait(1) -- // delay so that the freeze isn't instant
+        AnticheatBypassStatus = oldvalue
+    end
+end)
 RunService.Heartbeat:Connect(function()
     if AnticheatBypassStatus then
         FreezeCharacter()
@@ -384,9 +399,9 @@ RunService.RenderStepped:Connect(function()
     if AutofarmStatus then
         NearestCharacter = GetClosestCharacterToPosition(GetEnemies(), Workspace.Map.Scripted.Doors.FakeLight.Position)
         if NearestCharacter and LocalPlayer.Character and AnticheatBypassStatus then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(NearestCharacter.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+            floatpad.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,-3,0)
             if AutofarmPlacement == "Above" then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(NearestCharacter.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(NearestCharacter.HumanoidRootPart.Position + Vector3.new(0, 8, 0))
             elseif AutofarmPlacement == "Infront" then
                 LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame + NearestCharacter.HumanoidRootPart.CFrame.LookVector * 5
             elseif AutofarmPlacement == "Behind" then
@@ -395,7 +410,6 @@ RunService.RenderStepped:Connect(function()
             if AutofarmLookat then
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, NearestCharacter.Head.Position)
             end
-            floatpad.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,-3.1,0)
         else
             floatpad.CFrame = CFrame.new(Vector3.new(0, 50000, 0))
         end
