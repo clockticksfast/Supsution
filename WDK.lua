@@ -52,6 +52,7 @@ local AutofarmStatus = false
 local AnticheatBypassStatus = false
 local AutofarmStartPlace = nil -- position where the autofarm is toggled
 local AutofarmPlacement = "Above"
+local AutofarmLookat = false
 local Checks = {
     Visible = false,
     Wall = false,
@@ -303,7 +304,10 @@ end})
 AutomaticLeftTab:AddDropdown('AutofarmPlacementDropdown', {Values = { 'Above', 'Behind', "Infront"},Default = 1,Multi = false,Text = 'Teleport placement',Tooltip = 'Where will it teleport', Callback = function(Value)
     AutofarmPlacement = Value
 end})
-
+AutomaticLeftTab:AddDivider()
+AutomaticLeftTab:AddToggle('AutofarmLookatToggle', {Text = 'Lookat target', Default = false, Tooltip = 'Will orient the camera so it faces the zombie', Callback = function(Value)
+    AutofarmLookat = Value
+end})
 
 
 AimbotVisualsBox:AddToggle('FovVisibleToggle', {Text = 'Visible', Default = false, Tooltip = 'Aimbot fov toggle', Callback = function(Value)
@@ -375,6 +379,9 @@ RunService.RenderStepped:Connect(function()
                 LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame + NearestCharacter.HumanoidRootPart.CFrame.LookVector * 5
             elseif AutofarmPlacement == "Behind" then
                 LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame - NearestCharacter.HumanoidRootPart.CFrame.LookVector * 5
+            end
+            if AutofarmLookat then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, NearestCharacter.Head.Position)
             end
             floatpad.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,-3.1,0)
         else
