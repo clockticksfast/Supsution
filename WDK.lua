@@ -62,10 +62,10 @@ local Checks = {
 local AutofarmChecks = {
     Forcefield = false,
 }
-local floatpad = Instance.new("Part", Workspace)
+local floatpad = Instance.new("Part", LocalPlayer.Character.HumanoidRootPart)
 floatpad.Anchored = true
 floatpad.Transparency = 1
-floatpad.Size = Vector3.new(4, 0.2, 4)
+floatpad.Size = Vector3.new(2,0.2,1.5)
 
 
 local GlobalFovCircle = Drawing.new("Circle")
@@ -373,6 +373,11 @@ end)
 
 
 LocalPlayer.CharacterAdded:Connect(function(Character)
+    floatpad = Instance.new("Part", LocalPlayer.Character.HumanoidRootPart)
+    floatpad.Anchored = true
+    floatpad.Transparency = 1
+    floatpad.Size = Vector3.new(2,0.2,1.5)
+
     if Autofarmautoexitspawn then
         local oldvalue = AnticheatBypassStatus -- // store the old ac bypass value
         AnticheatBypassStatus = false
