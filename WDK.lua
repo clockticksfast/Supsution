@@ -27,13 +27,17 @@ local Tabs = {
 local AimbotLeftTab = Tabs.Main:AddLeftGroupbox('Aimbot configuration')
 local AutomaticLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm configuration')
 local AutomaticChecksLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm checks')
+local AutomaticBlacklistRightTab = Tabs.Automatic:AddRightGroupbox('Autofarm blacklist')
+local AutomaticPriorityListRightTab = Tabs.Automatic:AddRightGroupbox('Autofarm priority')
+local AutomaticAutoEquipRightTab = Tabs.Automatic:AddRightGroupbox('Auto equip gun')
 local MiscLeftTab = Tabs.Misc:AddLeftGroupbox('Misc')
+local MiscRightTab = Tabs.Misc:AddRightGroupbox('Misc')
 
 local AimbotRightVisualsBox = Tabs.Main:AddRightTabbox()
 local AimbotVisualsBox = AimbotRightVisualsBox:AddTab('Fov')
 
 -- // Variables
-local Workspace, Players, RunService, Camera, UserInputService, ReplicatedStorage = game:GetService("Workspace"), game:GetService("Players"), game:GetService("RunService"), Game:GetService("Workspace").CurrentCamera, game:GetService("UserInputService"), game:GetService("ReplicatedStorage")
+local Workspace, Players, RunService, Camera, UserInputService, ReplicatedStorage, VirtualUser = game:GetService("Workspace"), game:GetService("Players"), game:GetService("RunService"), Game:GetService("Workspace").CurrentCamera, game:GetService("UserInputService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser")
 local Zombies = Workspace.Zombies
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
@@ -55,6 +59,11 @@ local AutofarmStartPlace = nil -- position where the autofarm is toggled
 local AutofarmPlacement = "Above"
 local AutofarmLookat = false
 local Autofarmautoexitspawn = false
+local Blacklistedzombietable = {}
+local Priorityzombietable = {}
+local AntiAfkStatus = false
+local AutoEquipStatus = false
+local AutoEquipName = nil
 local Checks = {
     Visible = false,
     Wall = false,
@@ -62,7 +71,17 @@ local Checks = {
 local AutofarmChecks = {
     Forcefield = false,
 }
-local floatpad = Instance.new("Part", LocalPlayer.Character.HumanoidRootPart)
+local floatpad = Instance.new("Part")
+spawn(function()
+    while task.wait(1) do
+        if LocalPlayer.Character then
+            if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                floatpad.Parent = LocalPlayer.Character.HumanoidRootPart
+            end
+        end
+    end
+
+end)
 floatpad.Anchored = true
 floatpad.Transparency = 1
 floatpad.Size = Vector3.new(2,0.2,1.5)
@@ -122,12 +141,26 @@ function GetClosestCharacterToPosition(CharacterTable, Position)
     local ClosestPlayer
     local ClosestDistance = math.huge
 
+    -- // Priority
+    for i, Character in pairs(CharacterTable) do
+        if table.find(Priorityzombietable, Character.Name) then
+            if AutofarmChecks.Forcefield and Character:FindFirstChildOfClass("ForceField") then
+                -- //
+            else
+                ClosestPlayer = Character
+                ClosestDistance = 0
+            end
+        end
+    end
+    -- // Normal
     for i, Character in pairs(CharacterTable) do
         local CharacterPosition = Character:FindFirstChildWhichIsA("BasePart").Position
         local Distance = CalcDistance(CharacterPosition, Position)
 
         if Distance < ClosestDistance then
             if AutofarmChecks.Forcefield and Character:FindFirstChildOfClass("ForceField") then
+                -- //
+            elseif table.find(Blacklistedzombietable, Character.Name) then
                 -- //
             else
 
@@ -261,9 +294,122 @@ function FreezeCharacter()
     end
 end
 
+function UpdateBlacklistedZombies()
+    Blacklistedzombietable = {}
+
+    for _, blacklist in pairs({
+        Options.AutofarmBlacklistZombieCommons.Value,
+        Options.AutofarmBlacklistZombieUncommons.Value,
+        Options.AutofarmBlacklistZombieSpecials.Value
+    }) do
+        for key, _ in pairs(blacklist) do
+            table.insert(Blacklistedzombietable, key)
+        end
+    end
+end
+function UpdatePriorityZombies()
+    Priorityzombietable = {}
+
+    for _, priority in pairs({
+        Options.AutofarmPrioritylistZombieCommons.Value,
+        Options.AutofarmPrioritylistZombieUncommons.Value,
+        Options.AutofarmPrioritylistZombieSpecials.Value
+    }) do
+        for key, _ in pairs(priority) do
+            table.insert(Priorityzombietable, key)
+        end
+    end
+end
+
+
+function EquipTool(toolname)
+    for i,v in pairs(LocalPlayer.Character:GetChildren()) do
+        if v:IsA("Tool") then
+            v.Parent = LocalPlayer.Backpack
+        end
+    end
+
+    if LocalPlayer.Backpack:FindFirstChild(toolname) then
+        LocalPlayer.Backpack[toolname].Parent = LocalPlayer.Character
+    end
+end
 
 
 -- // Main script below
+
+
+
+-- dropdown:SetValues(valuetable)
+
+
+-- // autofarm zombie blacklist
+
+local CommonZombieList = {
+    'Zombie',
+    'Crawler', 
+    'Boomer',
+    'LongerArm', 
+    'HeavyArmourZombie', 
+    'ArmouredZombie', 
+    'HelmetZombie',
+}
+local UncommonZombieList = {
+    'ToxicZombie', 
+    'Flamer', 
+    'ElectricZombie',
+    'HeadlessZombie',
+}
+local SpecialZombieList = {
+    'Wraith', 
+    'Berserker', 
+    'Destroyer', 
+    'Lurker', 
+    'Sponger', 
+    'Hunter', 
+    'Boss',
+    'SwampGiant',
+}
+AutomaticBlacklistRightTab:AddDropdown('AutofarmBlacklistZombieCommons', {Values = CommonZombieList,Default = 0,Multi = true,Text = 'Commons',Tooltip = 'Blacklist zombie', Callback = function(Value)
+
+end})
+AutomaticBlacklistRightTab:AddDropdown('AutofarmBlacklistZombieUncommons', {Values = UncommonZombieList,Default = 0,Multi = true ,Text = 'Uncommons',Tooltip = 'Blacklist zombie', Callback = function(Value)
+
+end})
+
+AutomaticBlacklistRightTab:AddDropdown('AutofarmBlacklistZombieSpecials', {Values =  SpecialZombieList ,Default = 0,Multi = true, Text = 'Specials',Tooltip = 'Blacklist zombie', Callback = function(Value)
+
+end})
+
+-- // autofarm zombie priority
+AutomaticPriorityListRightTab:AddDropdown('AutofarmPrioritylistZombieCommons', {Values = CommonZombieList,Default = 0,Multi = true,Text = 'Commons',Tooltip = 'Prioritize zombie', Callback = function(Value)
+
+end})
+AutomaticPriorityListRightTab:AddDropdown('AutofarmPrioritylistZombieUncommons', {Values = UncommonZombieList,Default = 0,Multi = true ,Text = 'Uncommons',Tooltip = 'Prioritize zombie', Callback = function(Value)
+
+end})
+
+AutomaticPriorityListRightTab:AddDropdown('AutofarmPrioritylistZombieSpecials', {Values = SpecialZombieList,Default = 0,Multi = true, Text = 'Specials',Tooltip = 'Prioritize zombie', Callback = function(Value)
+
+end})
+
+-- // Update the blacklisted zombie table
+Options.AutofarmBlacklistZombieCommons:OnChanged(UpdateBlacklistedZombies)
+Options.AutofarmBlacklistZombieUncommons:OnChanged(UpdateBlacklistedZombies)
+Options.AutofarmBlacklistZombieSpecials:OnChanged(UpdateBlacklistedZombies)
+-- // Update the priority zombie table
+Options.AutofarmPrioritylistZombieCommons:OnChanged(UpdatePriorityZombies)
+Options.AutofarmPrioritylistZombieUncommons:OnChanged(UpdatePriorityZombies)
+Options.AutofarmPrioritylistZombieSpecials:OnChanged(UpdatePriorityZombies)
+
+
+
+AutomaticAutoEquipRightTab:AddToggle('AutoEquipToggle', {Text = 'Auto equip', Default = false, Tooltip = 'Auto equip toggle', Callback = function(Value)
+    AutoEquipStatus = Value
+end})
+AutomaticAutoEquipRightTab:AddInput('AutoEquipTextbox', { Default = '', Numeric = false,Finished = false, Text = 'Auto equip name', Tooltip = 'Tool to equip (tool icon name)', Placeholder = 'Ex : C96', Callback = function(Value)
+    AutoEquipName = Value
+end})
+
 
 
 AimbotLeftTab:AddToggle('AimbotToggle', {Text = 'Aimbot', Default = false, Tooltip = 'Aimbot toggle', Callback = function(Value)
@@ -279,6 +425,7 @@ AimbotLeftTab:AddDivider()
 AimbotLeftTab:AddDropdown('AimbotTargetPartDropdown', {Values = { 'Head', 'HumanoidRootPart'},Default = 1,Multi = false,Text = 'Hitpart',Tooltip = 'Wich part to target', Callback = function(Value)
     TargetPart = Value
 end})
+
 AimbotLeftTab:AddDropdown('AimbotHitScanDropdown', {Values = { 'Head', 'HumanoidRootPart'},Default = 2,Multi = true,Text = 'Hitscan',Tooltip = 'If the part(s) is detected inside the circle, choose that character', Callback = function(Value)
 
 end})
@@ -312,9 +459,6 @@ AutomaticLeftTab:AddToggle('AutofarmToggle', {Text = 'Autofarm', Default = false
 end})
 AutomaticLeftTab:AddDropdown('AutofarmPlacementDropdown', {Values = { 'Above', 'Behind', "Infront"},Default = 1,Multi = false,Text = 'Teleport placement',Tooltip = 'Where will it teleport', Callback = function(Value)
     AutofarmPlacement = Value
-end})
-AutomaticLeftTab:AddToggle('autofarmautoexitspawn', {Text = 'Auto exit spawn', Default = false, Tooltip = 'Automatically exit spawn', Callback = function(Value)
-    Autofarmautoexitspawn = Value
 end})
 AutomaticLeftTab:AddDivider()
 AutomaticLeftTab:AddToggle('AutofarmLookatToggle', {Text = 'Lookat target', Default = false, Tooltip = 'Will orient the camera so it faces the zombie', Callback = function(Value)
@@ -355,6 +499,12 @@ MiscLeftTab:AddButton({Text = 'Copy servercode',
     DoubleClick = false,
     Tooltip = 'Copy the servercode'
 })
+MiscRightTab:AddToggle('AntiAfkToggle', {Text = 'Anti-AFK', Default = false, Tooltip = 'Anti-AFK Toggle', Callback = function(Value)
+    AimbotToggleStatus = Value
+end})
+MiscRightTab:AddToggle('AutoExitSpawnToggle', {Text = 'Auto exit spawn', Default = false, Tooltip = 'Automatically exit spawn', Callback = function(Value)
+    Autofarmautoexitspawn = Value
+end})
 
 
 task.spawn(function()
@@ -371,8 +521,17 @@ task.spawn(function()
     end
 end)
 
+game:GetService("Players").LocalPlayer.Idled:connect(function()
+    if AntiAfkStatus then
+        VirtualUser:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+        wait(1)
+        VirtualUser:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    end
+end)
+
 
 LocalPlayer.CharacterAdded:Connect(function(Character)
+    Character:WaitForChild("HumanoidRootPart")
     floatpad = Instance.new("Part", LocalPlayer.Character.HumanoidRootPart)
     floatpad.Anchored = true
     floatpad.Transparency = 1
@@ -381,9 +540,13 @@ LocalPlayer.CharacterAdded:Connect(function(Character)
     if Autofarmautoexitspawn then
         local oldvalue = AnticheatBypassStatus -- // store the old ac bypass value
         AnticheatBypassStatus = false
-        Character:WaitForChild("HumanoidRootPart")
         LocalPlayer.Character.HumanoidRootPart.CFrame = Workspace.Map.Shop.InvisibleWalls:GetChildren()[23].CFrame
         task.wait(1) -- // delay so that the freeze isn't instant
+        spawn(function()
+            task.wait(1)
+            EquipTool(AutoEquipName)
+        
+        end)
         AnticheatBypassStatus = oldvalue
     end
 end)
