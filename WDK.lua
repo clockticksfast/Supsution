@@ -64,6 +64,7 @@ local Priorityzombietable = {}
 local AntiAfkStatus = false
 local AutoEquipStatus = false
 local AutoEquipName = nil
+local AutoReadyStatus = false
 local Checks = {
     Visible = false,
     Wall = false,
@@ -71,12 +72,15 @@ local Checks = {
 local AutofarmChecks = {
     Forcefield = false,
 }
+
+local ConnectionTable = {}
 local floatpad = Instance.new("Part")
 spawn(function()
     while task.wait(1) do
         if LocalPlayer.Character then
             if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 floatpad.Parent = LocalPlayer.Character.HumanoidRootPart
+                break
             end
         end
     end
@@ -414,7 +418,7 @@ end})
 
 AimbotLeftTab:AddToggle('AimbotToggle', {Text = 'Aimbot', Default = false, Tooltip = 'Aimbot toggle', Callback = function(Value)
     AimbotToggleStatus = Value
-end}):AddKeyPicker('AimbotKeyToggle', { Default = 'C', SyncToggleState = false, Mode = 'Toggle', Text = 'Aimbot keybind (Aimbot toggle must be activated)' ,})
+end}):AddKeyPicker('AimbotKeyToggle', { Default = 'C', SyncToggleState = false, Mode = 'Toggle', Text = 'Aimbot keybind' ,})
 AimbotLeftTab:AddToggle('AimbotHookToggle', {Text = 'Mouse hook', Default = false, Tooltip = 'Hook the mouse position instead of moving the mouse', Callback = function(Value)
     MouseHook = Value
 end})
@@ -500,7 +504,10 @@ MiscLeftTab:AddButton({Text = 'Copy servercode',
     Tooltip = 'Copy the servercode'
 })
 MiscRightTab:AddToggle('AntiAfkToggle', {Text = 'Anti-AFK', Default = false, Tooltip = 'Anti-AFK Toggle', Callback = function(Value)
-    AimbotToggleStatus = Value
+    AntiAfkStatus = Value
+end})
+MiscRightTab:AddToggle('AutoReadyToggle', {Text = 'Auto ready', Default = false, Tooltip = 'Automatically ready up', Callback = function(Value)
+    AutoReadyStatus = Value
 end})
 MiscRightTab:AddToggle('AutoExitSpawnToggle', {Text = 'Auto exit spawn', Default = false, Tooltip = 'Automatically exit spawn', Callback = function(Value)
     Autofarmautoexitspawn = Value
@@ -550,22 +557,39 @@ LocalPlayer.CharacterAdded:Connect(function(Character)
         AnticheatBypassStatus = oldvalue
     end
 end)
-RunService.Heartbeat:Connect(function()
+
+-- // Anticheat bypass
+local Connection1 = RunService.Heartbeat:Connect(function()
     if AnticheatBypassStatus then
         FreezeCharacter()
     end
 end)
-
-RunService.RenderStepped:Connect(function()
-
-
-
+local Connection2 = RunService.Heartbeat:Connect(function()
     -- // Fov circle
     if GlobalFovCircle.Visible then
         GlobalFovCircle.Position = UserInputService:GetMouseLocation() -- WorldToViewport(Mouse.Hit.Position) (both the same)
     end
+
+    -- // Auto Ready
+    if AutoReadyStatus then
+        task.spawn(function()
+            ReplicatedStorage.RemoteFunctions.VoteSkip:InvokeServer() -- wrap it in task.spawn so it  dosen't delay the fovcircle
+        end)
+    end
+end)
+
+local Connection3 = RunService.RenderStepped:Connect(function()
+
+    -- // Get the zombie characters
+    if not AutofarmStatus then
+        NearestCharacter = GetClosestCharacterToCursor(GetEnemies()) -- // normal
+    else
+        NearestCharacter = GetClosestCharacterToPosition(GetEnemies(), Workspace.Map.Scripted.Doors.FakeLight.Position) -- // autofarm
+    end
+
+
+    -- // Autofarm
     if AutofarmStatus then
-        NearestCharacter = GetClosestCharacterToPosition(GetEnemies(), Workspace.Map.Scripted.Doors.FakeLight.Position)
         if NearestCharacter and LocalPlayer.Character and AnticheatBypassStatus then
             floatpad.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,-3,0)
             if AutofarmPlacement == "Above" then
@@ -583,39 +607,67 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    if AimbotToggleStatus and AimbotKeyToggleStatus then
-        if not AutofarmStatus then
-            NearestCharacter = GetClosestCharacterToCursor(GetEnemies())
-        end
-        if NearestCharacter then
-            if NearestCharacter then
-                NearestCharacterPosition3D = CalculatePosition(GetPart(NearestCharacter))
-                NearestCharacterPosition2D = WorldToScreen(NearestCharacterPosition3D)
-            else
-                NearestCharacter, NearestCharacterPosition2D, NearestCharacterPosition3D = nil, nil, nil
-            end
-        end
-    else
-        NearestCharacter, NearestCharacterPosition2D, NearestCharacterPosition3D = nil, nil, nil
+    -- // Get Zombie Positions
+    if NearestCharacter then
+        NearestCharacterPosition3D = CalculatePosition(GetPart(NearestCharacter))
+        NearestCharacterPosition2D = WorldToScreen(NearestCharacterPosition3D)
     end
 
-    if NearestCharacter and NearestCharacterPosition2D and not MouseHook then
-        mousemoverel(NearestCharacterPosition2D.X - Mouse.X,NearestCharacterPosition2D.Y - Mouse.Y)
+    -- // Aimbot
+    if AimbotKeyToggleStatus and AimbotToggleStatus and NearestCharacter and NearestCharacterPosition2D and not MouseHook then
+        mousemoverel(NearestCharacterPosition2D.X - Mouse.X, NearestCharacterPosition2D.Y - Mouse.Y)
     end
+
 
 end)
-
 
 
 -- // Library functions below
 
-Library:OnUnload(function()
-    Library.Unloaded = true
-end)
 
 local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
 
 MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddToggle('KeybindFrameToggle', {Text = 'Keybinds', Default = false, Tooltip = 'Show keybinds', Callback = function(Value)
+    Library.KeybindFrame.Visible = Value
+end})
+MenuGroup:AddToggle('WatermarkToggle', {Text = 'Watermark', Default = false, Tooltip = 'Show watermark', Callback = function(Value)
+    Library:SetWatermarkVisibility(Value)
+end})
+
+local Timer = tick()
+local FPSCounter = 0
+local FPS = 60
+local UpdateInterval = 0.1 
+
+local Connection4 = RunService.RenderStepped:Connect(function()
+    FPSCounter += 1
+
+    if (tick() - Timer) >= UpdateInterval then
+        FPS = FPSCounter / (tick() - Timer)
+        Timer = tick()
+        FPSCounter = 0
+    end
+
+    task.spawn(function()
+        Library:SetWatermark(('Windows Driver Kit (Beta) | %s fps '):format(math.floor(FPS)))
+    end)
+end)
+
+
+Library:OnUnload(function()
+    Library.Unloaded = true
+
+    local connections = getconnections(script.DescendantAdded)
+
+    for _, connection in ipairs(connections) do
+        connection:Disconnect()
+    end
+    cleardrawcache()
+end)
+
+
+
 MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
 Library.ToggleKeybind = Options.MenuKeybind
 ThemeManager:SetLibrary(Library)
