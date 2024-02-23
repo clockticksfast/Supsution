@@ -1,7 +1,8 @@
 local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua'))()
 local ThemeManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua'))()
 local SaveManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua'))()
-
+Library:SetWatermark('Windows Driver Kit (Beta)')
+Library:SetWatermarkVisibility(true)
 
 local Window = Library:CreateWindow({
     Title = 'Windows Driver Kit Beta',
@@ -65,6 +66,7 @@ local AntiAfkStatus = false
 local AutoEquipStatus = false
 local AutoEquipName = nil
 local AutoReadyStatus = false
+local ConnectionTable = {}
 local Checks = {
     Visible = false,
     Wall = false,
@@ -73,7 +75,7 @@ local AutofarmChecks = {
     Forcefield = false,
 }
 
-local ConnectionTable = {}
+
 local floatpad = Instance.new("Part")
 spawn(function()
     while task.wait(1) do
@@ -109,6 +111,10 @@ end
 function WorldToScreen(position)
     local Position = Camera:WorldToScreenPoint(position)
     return Vector2.new(Position.X, Position.Y)
+end
+
+function CreateLoop(func)
+    ConnectionTable[#ConnectionTable + 1] = RunService.Heartbeat:Connect(func)
 end
 
 function IsVisible(position)
@@ -559,12 +565,12 @@ LocalPlayer.CharacterAdded:Connect(function(Character)
 end)
 
 -- // Anticheat bypass
-local Connection1 = RunService.Heartbeat:Connect(function()
+CreateLoop(function()
     if AnticheatBypassStatus then
         FreezeCharacter()
     end
 end)
-local Connection2 = RunService.Heartbeat:Connect(function()
+CreateLoop(function()
     -- // Fov circle
     if GlobalFovCircle.Visible then
         GlobalFovCircle.Position = UserInputService:GetMouseLocation() -- WorldToViewport(Mouse.Hit.Position) (both the same)
@@ -578,7 +584,7 @@ local Connection2 = RunService.Heartbeat:Connect(function()
     end
 end)
 
-local Connection3 = RunService.RenderStepped:Connect(function()
+CreateLoop(function()
 
     -- // Get the zombie characters
     if not AutofarmStatus then
@@ -631,8 +637,9 @@ MenuGroup:AddButton('Unload', function() Library:Unload() end)
 MenuGroup:AddToggle('KeybindFrameToggle', {Text = 'Keybinds', Default = false, Tooltip = 'Show keybinds', Callback = function(Value)
     Library.KeybindFrame.Visible = Value
 end})
-MenuGroup:AddToggle('WatermarkToggle', {Text = 'Watermark', Default = false, Tooltip = 'Show watermark', Callback = function(Value)
+MenuGroup:AddToggle('WatermarkToggle', {Text = 'Watermark', Default = true, Tooltip = 'Show watermark', Callback = function(Value)
     Library:SetWatermarkVisibility(Value)
+    
 end})
 
 local Timer = tick()
@@ -640,7 +647,7 @@ local FPSCounter = 0
 local FPS = 60
 local UpdateInterval = 0.1 
 
-local Connection4 = RunService.RenderStepped:Connect(function()
+CreateLoop(function()
     FPSCounter += 1
 
     if (tick() - Timer) >= UpdateInterval then
@@ -649,19 +656,17 @@ local Connection4 = RunService.RenderStepped:Connect(function()
         FPSCounter = 0
     end
 
-    task.spawn(function()
-        Library:SetWatermark(('Windows Driver Kit (Beta) | %s fps '):format(math.floor(FPS)))
-    end)
+    --Library:SetWatermark(('Windows Driver Kit (Beta) | %s fps '):format(math.floor(FPS)))
+
 end)
 
 
 Library:OnUnload(function()
     Library.Unloaded = true
 
-    local connections = getconnections(script.DescendantAdded)
 
-    for _, connection in ipairs(connections) do
-        connection:Disconnect()
+    for _, Connection in pairs(ConnectionTable) do
+        Connection:Disconnect()
     end
     cleardrawcache()
 end)
