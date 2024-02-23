@@ -1,8 +1,7 @@
 local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua'))()
 local ThemeManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua'))()
 local SaveManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua'))()
-Library:SetWatermark('Windows Driver Kit (Beta)')
-Library:SetWatermarkVisibility(true)
+
 
 local Window = Library:CreateWindow({
     Title = 'Windows Driver Kit Beta',
@@ -30,9 +29,10 @@ local AutomaticLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm configuration'
 local AutomaticChecksLeftTab = Tabs.Automatic:AddLeftGroupbox('Autofarm checks')
 local AutomaticBlacklistRightTab = Tabs.Automatic:AddRightGroupbox('Autofarm blacklist')
 local AutomaticPriorityListRightTab = Tabs.Automatic:AddRightGroupbox('Autofarm priority')
-local AutomaticAutoEquipRightTab = Tabs.Automatic:AddRightGroupbox('Auto equip gun')
 local MiscLeftTab = Tabs.Misc:AddLeftGroupbox('Misc')
 local MiscRightTab = Tabs.Misc:AddRightGroupbox('Misc')
+local MiscAutoEquipRightTab = Tabs.Automatic:AddRightGroupbox('Auto equip gun')
+local MiscBlockClickRightTab = Tabs.Automatic:AddRightGroupbox('Ammo save')
 
 local AimbotRightVisualsBox = Tabs.Main:AddRightTabbox()
 local AimbotVisualsBox = AimbotRightVisualsBox:AddTab('Fov')
@@ -58,6 +58,7 @@ local AutofarmStatus = false
 local AnticheatBypassStatus = false
 local AutofarmStartPlace = nil -- position where the autofarm is toggled
 local AutofarmPlacement = "Above"
+local AutofarmPlacementDistance = 5
 local AutofarmLookat = false
 local Autofarmautoexitspawn = false
 local Blacklistedzombietable = {}
@@ -65,6 +66,7 @@ local Priorityzombietable = {}
 local AntiAfkStatus = false
 local AutoEquipStatus = false
 local AutoEquipName = nil
+local AmmoSaveStatus = false
 local AutoReadyStatus = false
 local ConnectionTable = {}
 local Checks = {
@@ -113,9 +115,11 @@ function WorldToScreen(position)
     return Vector2.new(Position.X, Position.Y)
 end
 
-function CreateLoop(func)
-    ConnectionTable[#ConnectionTable + 1] = RunService.Heartbeat:Connect(func)
+function ImportConnection(ConnectionType, ConnectionFunction)
+    local Connection = ConnectionType:Connect(ConnectionFunction)
+    ConnectionTable[#ConnectionTable + 1] = Connection
 end
+
 
 function IsVisible(position)
     local position, visible, point = Camera:WorldToScreenPoint(position)
@@ -413,13 +417,28 @@ Options.AutofarmPrioritylistZombieSpecials:OnChanged(UpdatePriorityZombies)
 
 
 
-AutomaticAutoEquipRightTab:AddToggle('AutoEquipToggle', {Text = 'Auto equip', Default = false, Tooltip = 'Auto equip toggle', Callback = function(Value)
+MiscAutoEquipRightTab:AddToggle('AutoEquipToggle', {Text = 'Auto equip', Default = false, Tooltip = 'Auto equip toggle', Callback = function(Value)
     AutoEquipStatus = Value
 end})
-AutomaticAutoEquipRightTab:AddInput('AutoEquipTextbox', { Default = '', Numeric = false,Finished = false, Text = 'Auto equip name', Tooltip = 'Tool to equip (tool icon name)', Placeholder = 'Ex : C96', Callback = function(Value)
+MiscAutoEquipRightTab:AddInput('AutoEquipTextbox', { Default = '', Numeric = false,Finished = false, Text = 'Auto equip name', Tooltip = 'Tool to equip (tool icon name)', Placeholder = 'Ex : C96', Callback = function(Value)
     AutoEquipName = Value
 end})
 
+MiscBlockClickRightTab:AddToggle('BlockRightClickToggle', {Text = 'Ammo saver', Default = false, Tooltip = 'Prevents you from shooting when no zombie is alive', Callback = function(Value)
+    if not Value then
+        for Index, Tool in pairs(LocalPlayer.Character:GetChildren()) do
+            if Tool:IsA("Tool") then
+                Tool.Enabled = true
+            end
+        end
+        for Index, Tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+            if Tool:IsA("Tool") then
+                Tool.Enabled = true
+            end
+        end
+    end
+    AmmoSaveStatus = Value
+end})
 
 
 AimbotLeftTab:AddToggle('AimbotToggle', {Text = 'Aimbot', Default = false, Tooltip = 'Aimbot toggle', Callback = function(Value)
@@ -469,6 +488,9 @@ AutomaticLeftTab:AddToggle('AutofarmToggle', {Text = 'Autofarm', Default = false
 end})
 AutomaticLeftTab:AddDropdown('AutofarmPlacementDropdown', {Values = { 'Above', 'Behind', "Infront"},Default = 1,Multi = false,Text = 'Teleport placement',Tooltip = 'Where will it teleport', Callback = function(Value)
     AutofarmPlacement = Value
+end})
+AutomaticLeftTab:AddSlider('AutofarmPlacementDistanceSlider', { Text = 'Placement Distance', Default = 5, Min = 5, Max = 10, Rounding = 1, Compact = false, Callback = function(Value)
+    AutofarmPlacementDistance = Value
 end})
 AutomaticLeftTab:AddDivider()
 AutomaticLeftTab:AddToggle('AutofarmLookatToggle', {Text = 'Lookat target', Default = false, Tooltip = 'Will orient the camera so it faces the zombie', Callback = function(Value)
@@ -534,7 +556,7 @@ task.spawn(function()
     end
 end)
 
-game:GetService("Players").LocalPlayer.Idled:connect(function()
+ImportConnection(LocalPlayer.Idled, function()
     if AntiAfkStatus then
         VirtualUser:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
         wait(1)
@@ -543,7 +565,7 @@ game:GetService("Players").LocalPlayer.Idled:connect(function()
 end)
 
 
-LocalPlayer.CharacterAdded:Connect(function(Character)
+ImportConnection(LocalPlayer.CharacterAdded, function(Character)
     Character:WaitForChild("HumanoidRootPart")
     floatpad = Instance.new("Part", LocalPlayer.Character.HumanoidRootPart)
     floatpad.Anchored = true
@@ -565,12 +587,12 @@ LocalPlayer.CharacterAdded:Connect(function(Character)
 end)
 
 -- // Anticheat bypass
-CreateLoop(function()
+ImportConnection(RunService.Heartbeat, function()
     if AnticheatBypassStatus then
         FreezeCharacter()
     end
 end)
-CreateLoop(function()
+ImportConnection(RunService.RenderStepped, function()
     -- // Fov circle
     if GlobalFovCircle.Visible then
         GlobalFovCircle.Position = UserInputService:GetMouseLocation() -- WorldToViewport(Mouse.Hit.Position) (both the same)
@@ -582,10 +604,21 @@ CreateLoop(function()
             ReplicatedStorage.RemoteFunctions.VoteSkip:InvokeServer() -- wrap it in task.spawn so it  dosen't delay the fovcircle
         end)
     end
+
+    if AmmoSaveStatus then
+        local Status = false
+        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        for Index, Zombie in pairs(Zombies:GetChildren()) do
+            if Zombie:FindFirstChildOfClass("Humanoid").Health > 0 then
+                Status = true
+                break
+            end
+        end
+        tool.Enabled = Status
+    end
 end)
 
-CreateLoop(function()
-
+ImportConnection(RunService.RenderStepped, function()
     -- // Get the zombie characters
     if not AutofarmStatus then
         NearestCharacter = GetClosestCharacterToCursor(GetEnemies()) -- // normal
@@ -593,17 +626,16 @@ CreateLoop(function()
         NearestCharacter = GetClosestCharacterToPosition(GetEnemies(), Workspace.Map.Scripted.Doors.FakeLight.Position) -- // autofarm
     end
 
-
     -- // Autofarm
     if AutofarmStatus then
         if NearestCharacter and LocalPlayer.Character and AnticheatBypassStatus then
             floatpad.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,-3,0)
             if AutofarmPlacement == "Above" then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(NearestCharacter.HumanoidRootPart.Position + Vector3.new(0, 8, 0))
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(NearestCharacter.HumanoidRootPart.Position + Vector3.new(0, AutofarmPlacementDistance, 0))
             elseif AutofarmPlacement == "Infront" then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame + NearestCharacter.HumanoidRootPart.CFrame.LookVector * 5
+                LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame + NearestCharacter.HumanoidRootPart.CFrame.LookVector * AutofarmPlacementDistance
             elseif AutofarmPlacement == "Behind" then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame - NearestCharacter.HumanoidRootPart.CFrame.LookVector * 5
+                LocalPlayer.Character.HumanoidRootPart.CFrame = NearestCharacter.HumanoidRootPart.CFrame - NearestCharacter.HumanoidRootPart.CFrame.LookVector * AutofarmPlacementDistance
             end
             if AutofarmLookat then
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, NearestCharacter.Head.Position)
@@ -623,9 +655,8 @@ CreateLoop(function()
     if AimbotKeyToggleStatus and AimbotToggleStatus and NearestCharacter and NearestCharacterPosition2D and not MouseHook then
         mousemoverel(NearestCharacterPosition2D.X - Mouse.X, NearestCharacterPosition2D.Y - Mouse.Y)
     end
-
-
 end)
+
 
 
 -- // Library functions below
@@ -633,30 +664,35 @@ end)
 
 local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
 
+local WatermarkStatus = true
 MenuGroup:AddButton('Unload', function() Library:Unload() end)
 MenuGroup:AddToggle('KeybindFrameToggle', {Text = 'Keybinds', Default = false, Tooltip = 'Show keybinds', Callback = function(Value)
     Library.KeybindFrame.Visible = Value
 end})
 MenuGroup:AddToggle('WatermarkToggle', {Text = 'Watermark', Default = true, Tooltip = 'Show watermark', Callback = function(Value)
-    Library:SetWatermarkVisibility(Value)
+    WatermarkStatus = Value
     
 end})
 
 local Timer = tick()
 local FPSCounter = 0
 local FPS = 60
-local UpdateInterval = 0.1 
+local UpdateInterval = 0.1
 
-CreateLoop(function()
+ImportConnection(RunService.RenderStepped, function()
     FPSCounter += 1
 
-    if (tick() - Timer) >= UpdateInterval then
-        FPS = FPSCounter / (tick() - Timer)
-        Timer = tick()
-        FPSCounter = 0
+    if WatermarkStatus then
+        if (tick() - Timer) >= UpdateInterval then
+            FPS = FPSCounter / (tick() - Timer)
+            Library:SetWatermark(('Windows Driver Kit (Beta) | '..math.floor(FPS) ..' fps '))
+            Library:SetWatermarkVisibility(WatermarkStatus)
+            Timer = tick()
+            FPSCounter = 0
+        end
+    else
+        Library:SetWatermarkVisibility(WatermarkStatus)
     end
-
-    --Library:SetWatermark(('Windows Driver Kit (Beta) | %s fps '):format(math.floor(FPS)))
 
 end)
 
