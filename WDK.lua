@@ -608,13 +608,15 @@ ImportConnection(RunService.RenderStepped, function()
     if AmmoSaveStatus then
         local Status = false
         local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        for Index, Zombie in pairs(Zombies:GetChildren()) do
-            if Zombie:FindFirstChildOfClass("Humanoid").Health > 0 then
-                Status = true
-                break
+        if tool then
+            for Index, Zombie in pairs(Zombies:GetChildren()) do
+                if Zombie:FindFirstChildOfClass("Humanoid").Health > 0 then
+                    Status = true
+                    break
+                end
             end
+            tool.Enabled = Status
         end
-        tool.Enabled = Status
     end
 end)
 
