@@ -448,7 +448,7 @@ MiscTriggerBotRightTab:AddToggle('TriggerBotToggle', {Text = 'Trigger bot', Defa
     TriggerBotStatus = Value
 end}):AddKeyPicker('TriggerBotKeyToggle', { Default = 'V', SyncToggleState = true, Mode = 'Toggle', Text = 'Trigger bot keybind' ,})
 
-MiscTriggerBotRightTab:AddSlider('TriggerBotDelaySlider', { Text = 'Delay', Default = 0.01, Min = 0, Max = 1, Rounding = 3, Compact = false, Callback = function(Value)
+MiscTriggerBotRightTab:AddSlider('TriggerBotDelaySlider', { Text = 'Delay', Default = 0.01, Min = 0, Max = 1, Rounding = 2, Compact = false, Callback = function(Value)
     TriggerBotDelay = Value
 end})
 
