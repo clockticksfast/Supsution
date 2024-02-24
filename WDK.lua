@@ -33,6 +33,7 @@ local MiscLeftTab = Tabs.Misc:AddLeftGroupbox('Misc')
 local MiscRightTab = Tabs.Misc:AddRightGroupbox('Misc')
 local MiscAutoEquipRightTab = Tabs.Automatic:AddRightGroupbox('Auto equip gun')
 local MiscBlockClickRightTab = Tabs.Automatic:AddRightGroupbox('Ammo save')
+local MiscTriggerBotRightTab = Tabs.Automatic:AddRightGroupbox('TriggerBot')
 
 local AimbotRightVisualsBox = Tabs.Main:AddRightTabbox()
 local AimbotVisualsBox = AimbotRightVisualsBox:AddTab('Fov')
@@ -68,6 +69,9 @@ local AutoEquipStatus = false
 local AutoEquipName = nil
 local AmmoSaveStatus = false
 local AutoReadyStatus = false
+local TriggerBotStatus = false
+local TriggerBotDelay = 0
+
 local ConnectionTable = {}
 local Checks = {
     Visible = false,
@@ -440,6 +444,13 @@ MiscBlockClickRightTab:AddToggle('BlockRightClickToggle', {Text = 'Ammo saver', 
     AmmoSaveStatus = Value
 end})
 
+MiscTriggerBotRightTab:AddToggle('TriggerBotToggle', {Text = 'Trigger bot', Default = false, Tooltip = 'Automatically shoot when target', Callback = function(Value)
+    TriggerBotStatus = Value
+end}):AddKeyPicker('TriggerBotKeyToggle', { Default = 'V', SyncToggleState = true, Mode = 'Toggle', Text = 'Trigger bot keybind' ,})
+
+MiscTriggerBotRightTab:AddSlider('TriggerBotDelaySlider', { Text = 'Delay', Default = 0.01, Min = 0, Max = 1, Rounding = 3, Compact = false, Callback = function(Value)
+    TriggerBotDelay = Value
+end})
 
 AimbotLeftTab:AddToggle('AimbotToggle', {Text = 'Aimbot', Default = false, Tooltip = 'Aimbot toggle', Callback = function(Value)
     AimbotToggleStatus = Value
@@ -593,6 +604,8 @@ ImportConnection(RunService.Heartbeat, function()
     end
 end)
 ImportConnection(RunService.RenderStepped, function()
+
+
     -- // Fov circle
     if GlobalFovCircle.Visible then
         GlobalFovCircle.Position = UserInputService:GetMouseLocation() -- WorldToViewport(Mouse.Hit.Position) (both the same)
@@ -641,6 +654,13 @@ ImportConnection(RunService.RenderStepped, function()
             end
             if AutofarmLookat then
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, NearestCharacter.Head.Position)
+            end
+
+            if isrbxactive() and TriggerBotStatus then
+                task.spawn(function()
+                    mouse1press()
+                    task.wait(TriggerBotDelay)
+                end)
             end
         else
             floatpad.CFrame = CFrame.new(Vector3.new(0, 50000, 0))
